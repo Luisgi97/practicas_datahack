@@ -1,0 +1,1116 @@
+---
+title: "Práctica Estadística"
+author: "Luis F. Blanco Torres"
+date: "2/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r results="hold" }
+# Pasos Previos
+#Antes comenzar, vamos a realizar el borrado de todas las variables del workspace y la eliminación de la notación científica en la muestra de los resultados:
+rm(list=ls())
+options(scipen=100,digits=4)
+```
+
+
+```{r results="hold" }
+#Carga de librerías necesarias:
+library(ggplot2)
+library(readr)
+library(gridExtra)
+library(grid)
+library(plyr)
+library(e1071)
+library(readxl)
+```
+
+```{r results="hold" }
+#Carga del dataset de la práctica:
+ds <- read_excel("C:/Users/Luis/Desktop/DATAHACK/Clases/1. Data Analytics/Práctica Luis Blanco/01.- Práctica Análisis Estadístico de Datos (Tabla).xlsx")
+```
+
+## **Se pretende realizar un análisis descriptivo de la actividad que siguen las ventas de dispositivos móviles y electrónicos de una franquicia en España (toda la información está desglosada por provincias en el archivo correspondiente). Haciendo uso de la tabla aportada, se pide:**
+
+### 1.- Desarrollar un análisis descriptivo siguiendo los siguientes pasos:
+  
+### 1.1.- Determinar los estadísticos que miden posición, dispersión y forma, así como todos los que se crean convenientes, de las variables “Ventas”, “Empleados” y “Productividad”. Se deja como ejercicio optativo el aplicarlo también al resto de variables, así como hacer un desglose por algunas provincias, en cuyo caso se daría prioridad a Madrid y Barcelona como las más representativas.
+### 1.2.- A modo también voluntario, generar todo gráfico que ayude a comprender de forma más profunda los resultados extraídos en el anterior apartado.
+
+En primer lugar vamos a realizar una comprobación de que el dataset ha cargado correctamente:
+
+</CENTER>
+```{r results="hold" }
+head(ds)
+```
+</CENTER>
+
+Comprobamos los nombres de las columnas de nuestra dataset, para conocer las variables que nos encontramos. Viendo lo que nos piden en la práctica, la variable "Número de empleados" vamos a tener que usarla en varias ocasiones, por lo que vamos a cambiar su nombre por "EMPLEADOS", para facilitar la escritura del código:
+
+</CENTER>
+```{r results="hold" }
+ds <- rename(ds,replace = c("NÚMERO DE EMPLEADOS"="EMPLEADOS"))
+names(ds)
+```
+</CENTER>
+
+Comprobamos que el cambio se ha realizado correctamente.  
+
+Antes de comenzar con el estudio de los principales estadísticos de posición, dispersión y forma, vamos a explicar brevemente su significado:  
+
+**MÍNIMO**
+
+Menor valor de la muestra.
+
+**BIGOTE INFERIOR**
+
+$$Bigote Inferior=Q1-1.5Ratio Intercuartílico$$
+
+Muestra si existen valores bajos atípicos.
+
+**PRIMER CUARTIL (Q1)**
+
+Valor de la variable que deja el 25% de las observaciones por debajo o igual a él.
+
+**MEDIANA**
+
+Valor de la variable que deja el mismo número de observaciones por debajo y encima de él, o lo que es lo mismo, el cuartil dos (Q2).
+
+**MEDIA**
+
+$$\overline{x}=\frac{\Sigma_{i}^n x_{i}}{n}$$
+
+Es una medida de dispersión que representa la variabilidad de una serie de datos respecto a su media.
+
+**TERCER CUARTIL (Q3)**
+
+Valor de la variable que deja el 75% de las observaciones por debajo o igual a él, o lo que es lo mismo, deja el 25% de las observaciones por encima o igual a él.
+
+**BIGOTE SUPERIOR**
+
+$$Bigote Superior=Q3+1.5Ratio Intercuartílico$$
+
+Muestra si existen valores altos atípicos.
+
+**MÁXIMO**
+
+Mayor valor de la muestra.
+
+**RATIO INTERCUARTÍLICO**
+
+$$R_{I}=Q3-Q1$$
+
+Longitud del intervalo central que contiene el 50% de las observaciones de la muestra.
+
+**VARIANZA**
+
+$$s^2=\frac{1}{n}\Sigma_{i}^mn_{i}(x_i-\overline{x})^2$$
+
+Es una medida de dispersión que representa la variabilidad de una serie de datos respecto a su media. 
+
+**DESVIACIÓN TÍPICA**
+
+$$s=\sqrt{s^2}$$
+
+También llamada desviación estándar es una medida que ofrece información sobre la dispersión media de una variable. La desviación típica es siempre mayor o igual que cero.
+
+**COEFICIENTE DE ASIMETRÍA**
+
+$$g_1=\frac{\frac{1}{n}\Sigma_{i}^mn_{i}(x_i-\overline{x})^3}{s^3}$$
+
+Evalúa la proximidad de los datos a su media x.  
+- Asimetría postiva: mayor concentración (frecuencias) en los valores más bajos.  
+- Asimetría negativa: mayor concentración (frecuencias) en los valores más altos.  
+- Asimetría cercana a cero: existe simetría.  
+
+**CURTOSIS**
+
+$$g_2=\frac{\frac{1}{n}\Sigma_{i}^mn_{i}(x_i-\overline{x})^4}{s^4}-3$$
+
+Indica la cantidad de datos que hay cercanos a la media.  
+- Platicúrtica: curtosis menor que cero (forma de plato).  
+- Mesocúrtica: curtosis cercana a cero (forma de meseta).  
+- Leptocúrtica: curtosis mayor que cero (forma delgada o de cuerno).  
+- Asimetría postiva: mayor concentración (frecuencias) en los valores más bajos. 
+**En la fórmula se resta 3 porque es la curtosis de una distribución Normal. Entonces la curtosis valdrá 0 para la Normal, tomándose a ésta como referencia.
+
+**COEFICIENTE DE VARIACIÓN DE PEARSON**
+
+$$C_v=\frac{s}{|\overline{x}|}$$
+
+Indica la relación existente entre la desviación típica de una muestra y su media.  
+- Cv entre 0-0.1: la media es muy representativa.  
+- Cv entre 0.1-0.3: la media es medianamente representativa.  
+- Cv entre 0.3-0.5: la media es poco representativa.  
+- Cv > 0.5: la media no es representativa.  
+
+
+A continuación, vamos extraer los valores estadísticos mencionados anteriormente para las variables "VENTAS", "EMPLEADOS" y "PRODUCTIVIDAD", con datos de toda España.  Para facilitar su visualización vamos a incluirlos en un nuevo dataframe que llamaremos "tabla_estadisticos_espana":
+
+</CENTER>
+```{r results="hold" }
+
+#VENTAS
+minimo_ventas_espana <- fivenum(ds$VENTAS)[1]
+bigote_inferior_ventas_espana <- boxplot.stats(ds$VENTAS)$stats[1]
+q1_ventas_espana <- boxplot.stats(ds$VENTAS)$stats[2]
+mediana_ventas_espana <- boxplot.stats(ds$VENTAS)$stats[3]
+media_ventas_espana <- mean(ds$"VENTAS")
+q3_ventas_espana  <- boxplot.stats(ds$VENTAS)$stats[4]
+bigote_superior_ventas_espana <- boxplot.stats(ds$VENTAS)$stats[5]
+maximo_ventas_espana <- fivenum(ds$VENTAS)[5]
+ratio_intercuartilico_ventas_espana <- q3_ventas_espana - q1_ventas_espana
+varianza_ventas_espana <- var(ds$"VENTAS")
+desviacion_tipica_ventas_espana <- sd(ds$"VENTAS")
+coef_asimetria_ventas_espana <- skewness(ds$"VENTAS")
+curtosis_ventas_espana <- kurtosis(ds$"VENTAS")
+coef_pearson_ventas_espana <- (cv_pearson <- sd(ds$"VENTAS")/abs(mean(ds$"VENTAS")))
+
+estadisticos_ventas_espana <- c(minimo_ventas_espana,
+                                bigote_inferior_ventas_espana,
+                                q1_ventas_espana,
+                                mediana_ventas_espana,
+                                media_ventas_espana,
+                                q3_ventas_espana,
+                                bigote_superior_ventas_espana,
+                                maximo_ventas_espana,
+                                ratio_intercuartilico_ventas_espana,
+                                varianza_ventas_espana,
+                                desviacion_tipica_ventas_espana,
+                                coef_asimetria_ventas_espana,
+                                curtosis_ventas_espana,
+                                coef_pearson_ventas_espana)
+
+#EMPLEADOS
+minimo_empleados_espana <- fivenum(ds$EMPLEADOS)[1]
+bigote_inferior_empleados_espana <- boxplot.stats(ds$EMPLEADOS)$stats[1]
+q1_empleados_espana <- boxplot.stats(ds$EMPLEADOS)$stats[2]
+mediana_empleados_espana <- boxplot.stats(ds$EMPLEADOS)$stats[3]
+media_empleados_espana <- mean(ds$"EMPLEADOS")
+q3_empleados_espana  <- boxplot.stats(ds$EMPLEADOS)$stats[4]
+bigote_superior_empleados_espana <- boxplot.stats(ds$EMPLEADOS)$stats[5]
+maximo_empleados_espana <- fivenum(ds$EMPLEADOS)[5]
+ratio_intercuartilico_empleados_espana <- q3_empleados_espana - q1_empleados_espana
+varianza_empleados_espana <- var(ds$"EMPLEADOS")
+desviacion_tipica_empleados_espana <- sd(ds$"EMPLEADOS")
+coef_asimetria_empleados_espana <- skewness(ds$"EMPLEADOS")
+curtosis_empleados_espana <- kurtosis(ds$"EMPLEADOS")
+coef_pearson_empleados_espana <- (cv_pearson <- sd(ds$"EMPLEADOS")/abs(mean(ds$"EMPLEADOS")))
+
+estadisticos_empleados_espana <- c(minimo_empleados_espana,
+                                   bigote_inferior_empleados_espana,
+                                   q1_empleados_espana,
+                                   mediana_empleados_espana,
+                                   media_empleados_espana,
+                                   q3_empleados_espana,
+                                   bigote_superior_empleados_espana,
+                                   maximo_empleados_espana,
+                                   ratio_intercuartilico_empleados_espana,
+                                   varianza_empleados_espana,
+                                   desviacion_tipica_empleados_espana,
+                                   coef_asimetria_empleados_espana,
+                                   curtosis_empleados_espana,
+                                   coef_pearson_empleados_espana)
+
+#PRODUCTIVIDAD
+minimo_productividad_espana <- fivenum(ds$PRODUCTIVIDAD)[1]
+bigote_inferior_productividad_espana <- boxplot.stats(ds$PRODUCTIVIDAD)$stats[1]
+q1_productividad_espana <- boxplot.stats(ds$PRODUCTIVIDAD)$stats[2]
+mediana_productividad_espana <- boxplot.stats(ds$PRODUCTIVIDAD)$stats[3]
+media_productividad_espana <- mean(ds$"PRODUCTIVIDAD")
+q3_productividad_espana  <- boxplot.stats(ds$PRODUCTIVIDAD)$stats[4]
+bigote_superior_productividad_espana <- boxplot.stats(ds$PRODUCTIVIDAD)$stats[5]
+maximo_productividad_espana <- fivenum(ds$PRODUCTIVIDAD)[5]
+ratio_intercuartilico_productividad_espana <- q3_productividad_espana - q1_productividad_espana
+varianza_productividad_espana <- var(ds$"PRODUCTIVIDAD")
+desviacion_tipica_productividad_espana <- sd(ds$"PRODUCTIVIDAD")
+coef_asimetria_productividad_espana <- skewness(ds$"PRODUCTIVIDAD")
+curtosis_productividad_espana <- kurtosis(ds$"PRODUCTIVIDAD")
+coef_pearson_productividad_espana <- (cv_pearson <- sd(ds$"PRODUCTIVIDAD") /                                                            abs(mean(ds$"PRODUCTIVIDAD")))
+
+estadisticos_productividad_espana <- c(minimo_productividad_espana,
+                                       bigote_inferior_productividad_espana,
+                                       q1_productividad_espana,
+                                       mediana_productividad_espana,
+                                       media_productividad_espana,
+                                       q3_productividad_espana,
+                                       bigote_superior_productividad_espana,
+                                       maximo_productividad_espana,
+                                       ratio_intercuartilico_productividad_espana,
+                                       varianza_productividad_espana,
+                                       desviacion_tipica_productividad_espana,
+                                       coef_asimetria_productividad_espana,
+                                       curtosis_productividad_espana,
+                                       coef_pearson_productividad_espana)
+
+#TABLA ESTADISTICOS DE ESPAÑA
+indice=c("Minimo","Bigote Inferior","Q1","Mediana","Media","Q3","Bigote Superior","Máximo","Ratio Intercuartilico","Varianza","Desviacion Tipica","Coefiente de Asimetria","Curtosis","Coeficiente de Variacion de Pearson")
+(tabla_estadiscos_espana <- data.frame (ESPANA=indice, VENTAS=estadisticos_ventas_espana, EMPLEADOS=estadisticos_empleados_espana, PRODUCTIVIDAD=estadisticos_productividad_espana))
+```
+*Los resultados contienen tres decimales .000*  
+</CENTER>
+
+- La valores de la varianza y la desviación típica nos indican que para la variable ventas, en media, la diferencia entre las ventas de las distintas tiendas es de 11177.252 (en miles de euros). Para la variable Empleados, nos encontramos que de media, la diferencia de empleados entre las distintas tiendas es de 22.535 personas y su productividad variará, respecto de su media en 20.197%.  
+
+- Gracias al Coeficiente de Variación de Pearson, podemos considerar la media como poco representativa para todas las variables analizadas, ya que todas tienen un valor muy superior a 0.5.
+
+- En cuanto a su asimetría, los resultados muestran una concentración mucho más elevada de valores bajos, al ser todas las simetrías positivas. Por otro lado, observando los resultados de Curtosis obtenidos, nos indican que para las tres variables nos encontramos con una distribución leptocúrtica, ya que todos los valores son superiores a cero. Esto es bueno para los modelos predictivos.
+A continuación se representan los histogramas de las tres variables, donde podemos comprobar los resultados:
+
+<CENTER>
+```{r results="hold" }
+
+(histograma_ventas_espana <-ggplot(data=ds, aes(x=VENTAS))+
+    geom_histogram(binwidth=500, color="red")+ 
+    xlab("VENTAS")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA VENTAS ESPAÑA"))
+
+(histograma_empleados_espana <-ggplot(data=ds, aes(x=EMPLEADOS))+
+    geom_histogram(binwidth=1, color="red")+ 
+    xlab("EMPLEADOS")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA EMPLEADOS ESPAÑA"))
+
+(histograma_productividad_espana <-ggplot(data=ds, aes(x=PRODUCTIVIDAD))+
+    geom_histogram(binwidth=1, color="red")+ 
+    xlab("PRODUCTIVIDAD")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA PRODUCTIVIDAD ESPAÑA"))
+
+```
+</CENTER>
+
+- Observamos que para las tres variables, el mínimo y el bigote inferior tienen el mismo valor, por lo que no encontramos valores bajos atípicos en las variables. Por el contrario, para los valores superiores si que encontramos resultados atípicos, al ser mayores sus máximos al bigote superior.  
+- En cuanto a los cuartiles y radio intercuartílico, se observan mejor en los siguientes diagramas de cajas:
+
+</CENTER>  
+```{r results="hold" }
+
+boxplot2<-function(x,y)
+{
+  stats=boxplot.stats(x)$stats
+  f=fivenum(x)
+  stats2<-c(f[1],stats,f[5])
+  stats3<-c(f[1],f[5])
+  boxplot(x,main=y,col="grey",ylim=c(0,stats[5]+(f[5])))
+  abline(h=stats[1],lty=2,col="blue")
+  abline(h=stats[5],lty=2,col="blue")
+  text(rep(0.7,10),stats2,labels=round(stats2,digits=2),cex=0.7)
+}
+
+par(mfrow=c(1,3))
+## ESPAÑA ##
+boxplot2(ds$VENTAS, "VENTAS ESPAÑA")
+boxplot2(ds$EMPLEADOS,"EMPLEADOS ESPAÑA")
+boxplot2(ds$PRODUCTIVIDAD,"PRODUCTIVIDAD ESPAÑA")
+```
+</CENTER>
+
+Gracias a estos diagramas de cajas, podemos comprobar que para VENTAS y EMPLEADOS, dentro del 50% del total de valores (Ratio Intercuartílico, Q3-Q1), la mayor parte de los valores son superiores a la media. Por el contrario, para la variable PRODUCTIVIDAD, la media si que es es representativa dentro del Ratio Intercuartílico.
+  
+Vamos a realizar el mismo ejercicio para Madrid y Barcelona. Al igual que antes, mostraremos los resultados en sus respectivos dataframes para facilitar su visualización.
+
+**MADRID**
+Comenzamos mostrando los estadísticos para las variables "VENTAS", "EMPLEADOS" y PRODUCTIVIDAD" en la provincia de Madrid:
+
+</CENTER>
+```{r results="hold" }
+
+ds_madrid <- ds[ds$PROVINCIA=="Madrid",c("PROVINCIA","VENTAS","EMPLEADOS","PRODUCTIVIDAD")]
+
+#VENTAS
+minimo_ventas_madrid <- fivenum(ds_madrid$VENTAS)[1]
+bigote_inferior_ventas_madrid <- boxplot.stats(ds_madrid$VENTAS)$stats[1]
+q1_ventas_madrid <- boxplot.stats(ds_madrid$VENTAS)$stats[2]
+mediana_ventas_madrid <- boxplot.stats(ds_madrid$VENTAS)$stats[3]
+media_ventas_madrid <- mean(ds_madrid$"VENTAS")
+q3_ventas_madrid  <- boxplot.stats(ds_madrid$VENTAS)$stats[4]
+bigote_superior_ventas_madrid <- boxplot.stats(ds_madrid$VENTAS)$stats[5]
+maximo_ventas_madrid <- fivenum(ds_madrid$VENTAS)[5]
+ratio_intercuartilico_ventas_madrid <- q3_ventas_madrid - q1_ventas_madrid
+varianza_ventas_madrid <- var(ds_madrid$"VENTAS")
+desviacion_tipica_ventas_madrid <- sd(ds_madrid$"VENTAS")
+coef_asimetria_ventas_madrid <- skewness(ds_madrid$"VENTAS")
+curtosis_ventas_madrid <- kurtosis(ds_madrid$"VENTAS")
+coef_pearson_ventas_madrid <- (cv_pearson <- sd(ds_madrid$"VENTAS")/abs(mean(ds_madrid$"VENTAS")))
+
+estadisticos_ventas_madrid <- c(minimo_ventas_madrid,
+                                bigote_inferior_ventas_madrid,
+                                q1_ventas_madrid,
+                                mediana_ventas_madrid,
+                                media_ventas_madrid,
+                                q3_ventas_madrid,
+                                bigote_superior_ventas_madrid,
+                                maximo_ventas_madrid,
+                                ratio_intercuartilico_ventas_madrid,
+                                varianza_ventas_madrid,
+                                desviacion_tipica_ventas_madrid,
+                                coef_asimetria_ventas_madrid,
+                                curtosis_ventas_madrid,
+                                coef_pearson_ventas_madrid)
+
+#EMPLEADOS
+minimo_empleados_madrid <- fivenum(ds_madrid$EMPLEADOS)[1]
+bigote_inferior_empleados_madrid <- boxplot.stats(ds_madrid$EMPLEADOS)$stats[1]
+q1_empleados_madrid <- boxplot.stats(ds_madrid$EMPLEADOS)$stats[2]
+mediana_empleados_madrid <- boxplot.stats(ds_madrid$EMPLEADOS)$stats[3]
+media_empleados_madrid <- mean(ds_madrid$"EMPLEADOS")
+q3_empleados_madrid  <- boxplot.stats(ds_madrid$EMPLEADOS)$stats[4]
+bigote_superior_empleados_madrid <- boxplot.stats(ds_madrid$EMPLEADOS)$stats[5]
+maximo_empleados_madrid <- fivenum(ds_madrid$EMPLEADOS)[5]
+ratio_intercuartilico_empleados_madrid <- q3_empleados_madrid - q1_empleados_madrid
+varianza_empleados_madrid <- var(ds_madrid$"EMPLEADOS")
+desviacion_tipica_empleados_madrid <- sd(ds_madrid$"EMPLEADOS")
+coef_asimetria_empleados_madrid <- skewness(ds_madrid$"EMPLEADOS")
+curtosis_empleados_madrid <- kurtosis(ds_madrid$"EMPLEADOS")
+coef_pearson_empleados_madrid <- (cv_pearson <-                                                                                     sd(ds_madrid$"EMPLEADOS")/abs(mean(ds_madrid$"EMPLEADOS")))
+
+estadisticos_empleados_madrid <- c(minimo_empleados_madrid,
+                                   bigote_inferior_empleados_madrid,
+                                   q1_empleados_madrid,
+                                   mediana_empleados_madrid,
+                                   media_empleados_madrid,
+                                   q3_empleados_madrid,
+                                   bigote_superior_empleados_madrid,
+                                   maximo_empleados_madrid,
+                                   ratio_intercuartilico_empleados_madrid,
+                                   varianza_empleados_madrid,
+                                   desviacion_tipica_empleados_madrid,
+                                   coef_asimetria_empleados_madrid,
+                                   curtosis_empleados_madrid,
+                                   coef_pearson_empleados_madrid)
+
+#PRODUCTIVIDAD
+minimo_productividad_madrid <- fivenum(ds_madrid$PRODUCTIVIDAD)[1]
+bigote_inferior_productividad_madrid <- boxplot.stats(ds_madrid$PRODUCTIVIDAD)$stats[1]
+q1_productividad_madrid <- boxplot.stats(ds_madrid$PRODUCTIVIDAD)$stats[2]
+mediana_productividad_madrid <- boxplot.stats(ds_madrid$PRODUCTIVIDAD)$stats[3]
+media_productividad_madrid <- mean(ds_madrid$"PRODUCTIVIDAD")
+q3_productividad_madrid  <- boxplot.stats(ds_madrid$PRODUCTIVIDAD)$stats[4]
+bigote_superior_productividad_madrid <- boxplot.stats(ds_madrid$PRODUCTIVIDAD)$stats[5]
+maximo_productividad_madrid <- fivenum(ds_madrid$PRODUCTIVIDAD)[5]
+ratio_intercuartilico_productividad_madrid <- q3_productividad_madrid - q1_productividad_madrid
+varianza_productividad_madrid <- var(ds_madrid$"PRODUCTIVIDAD")
+desviacion_tipica_productividad_madrid <- sd(ds_madrid$"PRODUCTIVIDAD")
+coef_asimetria_productividad_madrid <- skewness(ds_madrid$"PRODUCTIVIDAD")
+curtosis_productividad_madrid <- kurtosis(ds_madrid$"PRODUCTIVIDAD")
+coef_pearson_productividad_madrid <- (cv_pearson <- sd(ds_madrid$"PRODUCTIVIDAD") /                                                     abs(mean(ds_madrid$"PRODUCTIVIDAD")))
+
+estadisticos_productividad_madrid <- c(minimo_productividad_madrid,
+                                       bigote_inferior_productividad_madrid,
+                                       q1_productividad_madrid,
+                                       mediana_productividad_madrid,
+                                       media_productividad_madrid,
+                                       q3_productividad_madrid,
+                                       bigote_superior_productividad_madrid,
+                                       maximo_productividad_madrid,
+                                       ratio_intercuartilico_productividad_madrid,
+                                       varianza_productividad_madrid,
+                                       desviacion_tipica_productividad_madrid,
+                                       coef_asimetria_productividad_madrid,
+                                       curtosis_productividad_madrid,
+                                       coef_pearson_productividad_madrid)
+
+#TABLA ESTADISTICOS DE MADRID
+indice=c("Minimo","Bigote Inferior","Q1","Mediana","Media","Q3","Bigote Superior","Máximo","Ratio Intercuartilico","Varianza","Desviacion Tipica","Coefiente de Asimetria","Curtosis","Coeficiente de Variacion de Pearson")
+(tabla_estadiscos_madrid <- data.frame (MADRID=indice, VENTAS=estadisticos_ventas_madrid, EMPLEADOS=estadisticos_empleados_madrid, PRODUCTIVIDAD=estadisticos_productividad_madrid))
+```
+*Los resultados contienen tres decimales .000*  
+</CENTER>
+
+- La valores de la varianza y la desviación típica para la provincia de Madrid nos indican que para la variable ventas, en media, la diferencia entre las ventas de las distintas tiendas es de 13871.666 (en miles de euros) 2694,414 más que para el total de provincias. Para la variable Empleados, nos encontramos que de media, la diferencia de empleados entre las distintas tiendas es de 27.542 personas,5.007 más que para España, y su productividad variará, respecto de su media en un 24.343%, un 4.1457% más que para el total de España.  
+
+- Gracias al Coeficiente de Variación de Pearson, podemos considerar la media como poco representativa para todas las variables analizadas, ya que todas tienen un valor muy superior a 0.5, lo mismo que para el total de España.
+
+- En cuanto a su asimetría, al igual que para todas las provincias, los resultados muestran una concentración mucho más elevada de valores bajos, al ser todas las simetrías positivas. Por otro lado, observando los resultados de Curtosis obtenidos, nos indican que para las tres variables nos encontramos con una distribución leptocúrtica, ya que todos los valores son superiores a cero. A continuación se representan los histogramas de las tres variables para Madrid, donde podemos comprobar los resultados:
+
+</CENTER>
+```{r results="hold" }
+
+(histograma_ventas_madrid <-ggplot(data=ds_madrid, aes(x=VENTAS))+
+    geom_histogram(binwidth=500, color="red")+ 
+    xlab("VENTAS")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA VENTAS MADRID"))
+
+(histograma_empleados_madrid <-ggplot(data=ds_madrid, aes(x=EMPLEADOS))+
+    geom_histogram(binwidth=1, color="red")+ 
+    xlab("EMPLEADOS")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA EMPLEADOS MADRID"))
+
+(histograma_productividad_madrid <-ggplot(data=ds, aes(x=PRODUCTIVIDAD))+
+    geom_histogram(binwidth=1, color="red")+ 
+    xlab("PRODUCTIVIDAD")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA PRODUCTIVIDAD MADRID"))
+```
+</CENTER>
+
+- Observamos que para las tres variables, el mínimo y el bigote inferior tienen el mismo valor, por lo que no encontramos valores bajos atípicos en las variables. Por el contrario, para los valores superiores si que encontramos resultados atípicos, al ser mayores sus máximos al bigote superior.  
+
+- En cuanto a los cuartiles y radio intercuartílico, se observan mejor en los siguientes diagramas de cajas:
+
+</CENTER>
+```{r}
+
+par(mfrow=c(1,3))
+boxplot2(ds_madrid$VENTAS, "VENTAS MADRID")
+boxplot2(ds_madrid$EMPLEADOS,"EMPLEADOS MADRID")
+boxplot2(ds_madrid$PRODUCTIVIDAD,"PRODUCTIVIDAD MADRID")
+```
+</CENTER>
+
+Al igual que ocurría para todas las provincias, podemos comprobar que para VENTAS y EMPLEADOS, dentro del 50% del total de valores (Ratio Intercuartílico, Q3-Q1), la mayor parte de los valores son superiores a la media. Por el contrario, para la variable PRODUCTIVIDAD, la media si que es es representativa dentro del Ratio Intercuartílico.  
+
+**BARCELONA**
+A continuación, realizamos el mismo ejercicio para la provincia de Barcelona:
+
+</CENTER>
+```{r}
+
+ds_bcn <- ds[ds$PROVINCIA=="Barcelona",c("PROVINCIA","VENTAS","EMPLEADOS","PRODUCTIVIDAD")]
+
+#VENTAS
+minimo_ventas_bcn <- fivenum(ds_bcn$VENTAS)[1]
+bigote_inferior_ventas_bcn <- boxplot.stats(ds_bcn$VENTAS)$stats[1]
+q1_ventas_bcn <- boxplot.stats(ds_bcn$VENTAS)$stats[2]
+mediana_ventas_bcn <- boxplot.stats(ds_bcn$VENTAS)$stats[3]
+media_ventas_bcn <- mean(ds_bcn$"VENTAS")
+q3_ventas_bcn  <- boxplot.stats(ds_bcn$VENTAS)$stats[4]
+bigote_superior_ventas_bcn <- boxplot.stats(ds_bcn$VENTAS)$stats[5]
+maximo_ventas_bcn <- fivenum(ds_bcn$VENTAS)[5]
+ratio_intercuartilico_ventas_bcn <- q3_ventas_bcn - q1_ventas_bcn
+varianza_ventas_bcn <- var(ds_bcn$"VENTAS")
+desviacion_tipica_ventas_bcn <- sd(ds_bcn$"VENTAS")
+coef_asimetria_ventas_bcn <- skewness(ds_bcn$"VENTAS")
+curtosis_ventas_bcn <- kurtosis(ds_bcn$"VENTAS")
+coef_pearson_ventas_bcn <- (cv_pearson <- sd(ds_bcn$"VENTAS")/abs(mean(ds_bcn$"VENTAS")))
+
+estadisticos_ventas_bcn <- c(minimo_ventas_bcn,
+                             bigote_inferior_ventas_bcn,
+                             q1_ventas_bcn,
+                             mediana_ventas_bcn,
+                             media_ventas_bcn,
+                             q3_ventas_bcn,
+                             bigote_superior_ventas_bcn,
+                             maximo_ventas_bcn,
+                             ratio_intercuartilico_ventas_bcn,
+                             varianza_ventas_bcn,
+                             desviacion_tipica_ventas_bcn,
+                             coef_asimetria_ventas_bcn,
+                             curtosis_ventas_bcn,
+                             coef_pearson_ventas_bcn)
+
+#EMPLEADOS
+minimo_empleados_bcn <- fivenum(ds_bcn$EMPLEADOS)[1]
+bigote_inferior_empleados_bcn <- boxplot.stats(ds_bcn$EMPLEADOS)$stats[1]
+q1_empleados_bcn <- boxplot.stats(ds_bcn$EMPLEADOS)$stats[2]
+mediana_empleados_bcn <- boxplot.stats(ds_bcn$EMPLEADOS)$stats[3]
+media_empleados_bcn <- mean(ds_bcn$"EMPLEADOS")
+q3_empleados_bcn  <- boxplot.stats(ds_bcn$EMPLEADOS)$stats[4]
+bigote_superior_empleados_bcn <- boxplot.stats(ds_bcn$EMPLEADOS)$stats[5]
+maximo_empleados_bcn <- fivenum(ds_bcn$EMPLEADOS)[5]
+ratio_intercuartilico_empleados_bcn <- q3_empleados_bcn - q1_empleados_bcn
+varianza_empleados_bcn <- var(ds_bcn$"EMPLEADOS")
+desviacion_tipica_empleados_bcn <- sd(ds_bcn$"EMPLEADOS")
+coef_asimetria_empleados_bcn <- skewness(ds_bcn$"EMPLEADOS")
+curtosis_empleados_bcn <- kurtosis(ds_bcn$"EMPLEADOS")
+coef_pearson_empleados_bcn <- (cv_pearson <-                                                                                     sd(ds_bcn$"EMPLEADOS")/abs(mean(ds_bcn$"EMPLEADOS")))
+
+estadisticos_empleados_bcn <- c(minimo_empleados_bcn,
+                                bigote_inferior_empleados_bcn,
+                                q1_empleados_bcn,
+                                mediana_empleados_bcn,
+                                media_empleados_bcn,
+                                q3_empleados_bcn,
+                                bigote_superior_empleados_bcn,
+                                maximo_empleados_bcn,
+                                ratio_intercuartilico_empleados_bcn,
+                                varianza_empleados_bcn,
+                                desviacion_tipica_empleados_bcn,
+                                coef_asimetria_empleados_bcn,
+                                curtosis_empleados_bcn,
+                                coef_pearson_empleados_bcn)
+
+#PRODUCTIVIDAD
+minimo_productividad_bcn <- fivenum(ds_bcn$PRODUCTIVIDAD)[1]
+bigote_inferior_productividad_bcn <- boxplot.stats(ds_bcn$PRODUCTIVIDAD)$stats[1]
+q1_productividad_bcn <- boxplot.stats(ds_bcn$PRODUCTIVIDAD)$stats[2]
+mediana_productividad_bcn <- boxplot.stats(ds_bcn$PRODUCTIVIDAD)$stats[3]
+media_productividad_bcn <- mean(ds_bcn$"PRODUCTIVIDAD")
+q3_productividad_bcn  <- boxplot.stats(ds_bcn$PRODUCTIVIDAD)$stats[4]
+bigote_superior_productividad_bcn <- boxplot.stats(ds_bcn$PRODUCTIVIDAD)$stats[5]
+maximo_productividad_bcn <- fivenum(ds_bcn$PRODUCTIVIDAD)[5]
+ratio_intercuartilico_productividad_bcn <- q3_productividad_bcn - q1_productividad_bcn
+varianza_productividad_bcn <- var(ds_bcn$"PRODUCTIVIDAD")
+desviacion_tipica_productividad_bcn <- sd(ds_bcn$"PRODUCTIVIDAD")
+coef_asimetria_productividad_bcn <- skewness(ds_bcn$"PRODUCTIVIDAD")
+curtosis_productividad_bcn <- kurtosis(ds_bcn$"PRODUCTIVIDAD")
+coef_pearson_productividad_bcn <- (cv_pearson <- sd(ds_bcn$"PRODUCTIVIDAD") /                                                        abs(mean(ds_bcn$"PRODUCTIVIDAD")))
+
+estadisticos_productividad_bcn <- c(minimo_productividad_bcn,
+                                    bigote_inferior_productividad_bcn,
+                                    q1_productividad_bcn,
+                                    mediana_productividad_bcn,
+                                    media_productividad_bcn,
+                                    q3_productividad_bcn,
+                                    bigote_superior_productividad_bcn,
+                                    maximo_productividad_bcn,
+                                    ratio_intercuartilico_productividad_bcn,
+                                    varianza_productividad_bcn,
+                                    desviacion_tipica_productividad_bcn,
+                                    coef_asimetria_productividad_bcn,
+                                    curtosis_productividad_bcn,
+                                    coef_pearson_productividad_bcn)
+
+#TABLA ESTADISTICOS DE BARCELONA
+indice=c("Minimo","Bigote Inferior","Q1","Mediana","Media","Q3","Bigote Superior","Ratio Intercuartilico","Maximo","Varianza","Desviacion Tipica","Coefiente de Asimetria","Curtosis","Coeficiente de Variacion de Pearson")
+(tabla_estadiscos_bcn <- data.frame (BARCELONA=indice, VENTAS=estadisticos_ventas_bcn, EMPLEADOS=estadisticos_empleados_bcn, PRODUCTIVIDAD=estadisticos_productividad_bcn))
+```
+*Los resultados contienen tres decimales .000*  
+</CENTER>
+
+- La valores de la varianza y la desviación típica para la provincia de Madrid nos indican que para la variable ventas, en media, la diferencia entre las ventas de las distintas tiendas es de 12042.531 (en miles de euros) 865.279 más que para el total de provincias. Para la variable Empleados, nos encontramos que de media, la diferencia de empleados entre las distintas tiendas es de 24.281 personas, 1,746 más que para España, y su productividad variará, respecto de su media en un 17.785%, un 2.412% menos que para el total de España. Por lo que podemos comprobar que, la provincia de Barcelona, se asemeja más a los resultados de España que la provincia de Madrid.  
+
+- Gracias al Coeficiente de Variación de Pearson, podemos considerar la media como poco representativa para todas las variables analizadas, ya que todas tienen un valor muy superior a 0.5, lo mismo que para el total de España.
+
+- En cuanto a su asimetría, al igual que para todas las provincias, los resultados muestran una concentración mucho más elevada de valores bajos, al ser todas las simetrías positivas. Por otro lado, observando los resultados de Curtosis obtenidos, nos indican que para las tres variables nos encontramos con una distribución leptocúrtica, ya que todos los valores son superiores a cero. A continuación se representan los histogramas de las tres variables para Madrid, donde podemos comprobar los resultados:
+
+</CENTER>
+```{r}
+
+(histograma_ventas_bcn <-ggplot(data=ds_bcn, aes(x=VENTAS))+
+    geom_histogram(binwidth=500, color="red")+ 
+    xlab("VENTAS")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA VENTAS BARCELONA"))
+
+(histograma_empleados_bcn <-ggplot(data=ds_bcn, aes(x=EMPLEADOS))+
+    geom_histogram(binwidth=1, color="red")+ 
+    xlab("EMPLEADOS")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA EMPLEADOS BARCELONA"))
+
+(histograma_productividad_bcn <-ggplot(data=ds_bcn, aes(x=PRODUCTIVIDAD))+
+    geom_histogram(binwidth=1, color="red")+ 
+    xlab("PRODUCTIVIDAD")+  
+    ylab("REGISTROS")+
+    theme(legend.position="top")+
+    #theme(legend.position="none")+
+    ggtitle("HISTOGRAMA PRODUCTIVIDAD BARCELONA"))
+```
+</CENTER>
+
+- Observamos que para las tres variables, el mínimo y el bigote inferior tienen el mismo valor, por lo que no encontramos valores bajos atípicos en las variables. Por el contrario, para los valores superiores si que encontramos resultados atípicos, al ser mayores sus máximos al bigote superior.  
+
+- En cuanto a los cuartiles y radio intercuartílico, se observan mejor en los siguientes diagramas de cajas:
+
+</CENTER>
+```{r}
+
+par(mfrow=c(1,3))
+boxplot2(ds_bcn$VENTAS, "VENTAS BARCELONA")
+boxplot2(ds_bcn$EMPLEADOS,"EMPLEADOS BARCELONA")
+boxplot2(ds_bcn$PRODUCTIVIDAD,"PRODUCTIVIDAD BARCELONA")
+```
+</CENTER>
+
+Al igual que ocurría para todas las provincias, incluida Madrid, podemos comprobar que para VENTAS y EMPLEADOS, dentro del 50% del total de valores (Ratio Intercuartílico, Q3-Q1), la mayor parte de los valores son superiores a la media. Por el contrario, para la variable PRODUCTIVIDAD, la media si que es es representativa dentro del Ratio Intercuartílico. 
+
+
+### 1.3.- Construir una matriz de correlaciones lineales entre todas las variables. Dar una interpretación rigurosa de los resultados.
+
+Antes de comenzar, vamos a explicar brevemente el significado de lo que usaremos:
+
+**COVARIANZA**
+
+$$Cov(x,y)=E[x,y]-E(x)E(y)$$
+E es la esperanza o lo que es lo mismo, la media.
+
+La covarianza es un valor que indica el grado de variación conjunta de dos variables aleatorias respecto a sus medias. Es el dato básico para determinar si existe una dependencia entre ambas variables y además es el dato necesario para estimar otros parámetros básicos, como el coeficiente de correlación lineal o la recta de regresión.
+
+**COEFICIENTE DE CORRELACIÓN LINEAL**
+
+$$r_{xy}=\frac{Cov(x,y)}{S_xS_y}$$
+
+
+Indica la fuerza y la dirección de una relación lineal y proporcionalidad entre dos variables estadísticas. Se considera que dos variables cuantitativas están correlacionadas cuando los valores de una de ellas varían sistemáticamente con respecto a los valores homónimos de la otra: si tenemos dos variables (A y B) existe correlación entre ellas si al disminuir los valores de A lo hacen también los de B y viceversa. La correlación entre dos variables no implica, por sí misma, ninguna relación de causalidad.
+- r cercano a 1: cuando una variable crece, la otra también en paralelo.
+- r cercano a -1: cuando una variable crece, la otra decrece en paralelo.
+- Si x e y son independientes r es cercano a 0, aunque no podemos decir que las variables sean independientes si r cercano a 0.
+
+**COEFICIENTE DE DETERMINACIÓN R2**
+
+$$R^2=\frac{(Cov(x,y))^2}{Var(x)Var(y)}$$
+
+Coeficiente que representa qué procentaje de variabilidad de una variable viene explicado por la variabilidad de otra variable.
+
+- R2>0.9: fuerte dependencia lineal.
+- 0.7<R2<0.9: representa vinculación.
+- 0.7>R2: se descarta vinculación entre variables.
+
+
+**RECTA DE REGRESIÓN**
+
+$$y=\frac{Cov(x,y)}{Var_x}X+\overline{y}-\frac{Cov(x,y)}{Var_x}\overline{x}$$
+
+La recta de regresión es la recta que mejor se ajusta a la nube de puntos.  
+
+Pendiente:
+
+$\frac{Cov(x,y)}{Var_x}X$
+
+Intercepto o Término independiente:
+
+$\overline{y}-\frac{Cov(x,y)}{Var_x}\overline{x}$
+
+**RESIDUO**
+
+$$Residuo=Valor Real - Valor Estimado$$
+
+
+Para crear la matriz de correlaciones no tenemos en cuenta la variable PROVINCIAS ya que es categórica ni REGISTRO.  
+
+```{r}
+ds_limpiada = ds
+ds_limpiada$PROVINCIA <- NULL
+```
+
+
+La siguiente imagen nos muestra un gráfico de dispersión para cada par de variables: 
+
+</CENTER>
+```{r}
+pairs(ds_limpiada)
+```
+</CENTER>
+
+Se puede apreciar una relación lineal entre las variables "VENTAS" y "EMPLEADOS". Entre el resto de pares de variables no se observa ninguna relación lineal. Vamos a ver más de cerca el gráfico de dispersión entre estas dos variables.
+
+</CENTER>
+```{r}
+grafico<-ggplot(data=ds, aes(x=VENTAS, y=EMPLEADOS)) 
+(grafico+geom_point(aes(), colour="red") + xlab("VENTAS")+ylab("EMPLEADOS") + ggtitle("GRÁFICO DE DISPERSIÓN VENTAS VS EMPLEADOS"))
+```
+</CENTER>
+
+A continuación, generamos la matriz de correlaciones para comprobar el nivel de correlación entre cada par de variables:
+
+</CENTER>
+```{r}
+matriz_correlacion <- (cor(ds_limpiada))^2
+matriz_correlacion
+cov(ds_limpiada)
+```
+</CENTER>
+
+Nos encontramos, como hemos podido comprobar en el gráfico de dispersión, que las variales VENTAS~EMPLEADOS son las que tienen una mayor dependencia lineal positiva r=0.7909, al ser su covarianza positiva nos indica que este par de variables varían en el mismo sentido alrededor de sus medias.
+
+No se encuentran otro par de variables con dependencia lineal.
+
+  
+### 1.4.- Crear intervalos para la variable “Ventas” determinando rangos homogéneos mediante la fórmula (máximo_valor – mínimo_valor)/√𝐶𝑎𝑛𝑡𝑖𝑑𝑎𝑑 𝑑𝑒 𝑑𝑎𝑡𝑜𝑠; igualmente, crear intervalos para la variable “Empleados” mediante la categorización que divide a las empresas en Microempresas (1-9 trabajadores), Pequeña empresa (10-49 trabajadores), Mediana empresa (50-249 trabajadores) y Gran empresa (250 y más trabajadores).
+
+Vamos a realizar los intervalos en la variable "VENTAS":
+
+```{r}
+inter <- (max(ds$VENTAS)-min(ds$VENTAS))/sqrt(length(ds$VENTAS))
+intervalo_ventas <- cut_interval(ds$VENTAS, length = inter)
+levels(intervalo_ventas)
+```
+
+Y el intervalo que define el "Tipo de Empresa":
+
+```{r}
+tipo_empresa <- cut(ds$EMPLEADOS, breaks=c(0,9,49,249,max(ds$EMPLEADOS)), labels=c("Microempresas","Pequeña empresa","Mediana empresa","Gran empresa"))
+table(tipo_empresa)
+```
+
+Se observa que el tipo de empresa más común es Microempresa, mientras que no hay ninguna Gran empresa.
+
+
+### 1.5.- Considerando los tramos del apartado anterior, realizar una tabla de contingencia entre las variables “Ventas” y “Empleados”. Interpretar la distribución conjunta y dar una interpretación precisa de la relación entre ambos atributos. Aplicar algún contraste que hable con solidez acerca de la posible dependencia entre variables.
+
+```{r}
+tabla_contingencia_ventas_empleados <- table(intervalo_ventas,tipo_empresa)
+tabla_contingencia_ventas_empleados
+```
+
+Vamos a descartar las filas que contienen todo valores nulos para poder realizar el contraste, estas son 59,63 y 66 y el tipo de empresa "Gran empresa":
+
+```{r}
+tabla_contingencia_ventas_empleados_sin_nulos <- tabla_contingencia_ventas_empleados[c(-59,-63,-66),c(-4)]
+tabla_contingencia_ventas_empleados_sin_nulos
+```
+
+Gracias a la tabla de contingencia de VENTAS y EMPLEADOS, podemos ver, que a menor número de empleados, menores son las ventas.
+
+A continuación, vamos a aplicar el contraste Chi^2, para ver la posible dependencia entre estas dos variables.  
+En primer lugar, calculamos las frecuencias observadas y esperadas para ver si existe dependencia entre ellas:
+
+```{r}
+#Frecuencias observadas:
+frecuencia_observada <- chisq.test(tabla_contingencia_ventas_empleados_sin_nulos)$observed
+```
+```{r}
+#Frecuencias esperadas:
+frecuencia_esperada <- chisq.test(tabla_contingencia_ventas_empleados_sin_nulos)$expected
+```
+
+Existe diferencia entre las frecuencias esperadas(teoricas) y las observadas, por lo que podemos decir que hay dependencia entre las dos variables.
+
+Ahora calculamos los residuos:
+
+```{r}
+residuos <- (frecuencia_observada-frecuencia_esperada)
+residuos
+```
+```{r}
+chi2 <- sum(((residuos)^2)/frecuencia_esperada)
+chi2
+```
+Obtenemos un valor para chi2 de 4885. Necesitamos conocer el valor crítico, ya que, si éste es menor que chi2, se rechaza que la hipótesis nula de que son independientes las variables.
+
+El nivel de aceptación es (0.05, el que usamos para rechazar una hipótesis nula) y los grados de libertad son el número de filas-1 (63) por las columnas-1 (2), esto quiere decir que el grado de libertad es: 126.
+```{r}
+valor_critico<-qchisq(0.05,126)
+valor_critico
+```
+
+El valor crítico es 101.1, menor que nuestro chi2 4885, luego se rechaza que las variables sean independientes.
+
+```{r}
+chisq.test(tabla_contingencia_ventas_empleados_sin_nulos)
+```
+
+Siendo la hipótesis nula que no hay dependencia entre variables, y ante un p-valor<=0.05, podemos rechazar la hipótesis nula y asumir que existe dependencia entre las variables VENTAS y EMPLEADOS.
+
+
+### 2.- Llegados a este punto, parece lógico pensar que existe cierta ligadura entre algunas variables. Desarrollar los correspondientes modelos de regresión lineal que determinen cómo varía una de las variables protagonistas en relación a la otra o a las otras; es decir, presentar un modelo simple y varios múltiples, pudiendo atender de forma voluntaria a la interacción entre variables predictoras. Llevar a cabo todos los correspondientes diagnósticos así como un estudio de los residuos, dando en cada caso una interpretación adecuada a los coeficientes y a la contribución y relevancia de las variables en la predicción.
+
+
+Vamos a analizar el gráfico de dispersión entre las variables VENTAS y EMPLEADOS, como ya adelantamos en el punto 1.3:
+
+</CENTER>
+```{r}
+grafico<-ggplot(data=ds, aes(x=VENTAS, y=EMPLEADOS)) 
+(grafico+geom_point(aes(), colour="red") + xlab("VENTAS")+ylab("EMPLEADOS") + ggtitle("GRÁFICO DE DISPERSIÓN VENTAS VS EMPLEADOS"))
+```
+</CENTER>
+
+Se puede apreciar una relación lineal entre las variables VENTAS y "EMPLEADOS.
+
+Vamos a ver cuál es el coeficiente de correlación lineal para estas dos varibles, así como es la matriz de correlación entre ellas, por lo que vamos a crear un nuevo dataframe con estas dos variables:
+
+```{r}
+ds_ventas_empleados <- data.frame(ds$VENTAS,ds$EMPLEADOS)
+ds_ventas_empleados <- rename(ds_ventas_empleados,replace = c("ds.VENTAS"="VENTAS"))
+ds_ventas_empleados <- rename(ds_ventas_empleados,replace = c("ds.EMPLEADOS"="EMPLEADOS"))
+r_ventas_empleados <- cor(ds_ventas_empleados)
+r_ventas_empleados
+```
+
+Vemos que el coeficiente de correlación lineal es 0.8893, muy cercano a 1, por lo que cuando una variable crece, la otra también lo hace en paralelo.
+
+**MODELO DE REGRESIÓN LINEAL:**
+
+Vamos a conseguir los datos necesarios para crear la Recta de regresión:
+```{r}
+regresion_lineal<-lm(VENTAS~EMPLEADOS, data=ds)
+summary(regresion_lineal)
+
+pendiente<-cov(ds$EMPLEADOS,ds$VENTAS)/var(ds$EMPLEADOS)
+pendiente
+
+independiente<-mean(ds$VENTAS)-pendiente*mean(ds$EMPLEADOS)
+independiente
+```
+
+Podemos decir que existe vinculación entre ambas variables, ya que el p-valor es menor a 0.05, por lo que podemos rechazar la hipótesis nula (no tienen vinculación).
+
+La ecuación de la Recta de regresión es:
+
+$$VENTAS=441.08 *EMPLEADOS-557.30$$
+
+
+```{r}
+coeficiente_R2<-(cov(ds$EMPLEADOS,ds$VENTAS)/(sd(ds$EMPLEADOS)*sd(ds$VENTAS)))^2
+coeficiente_R2
+#Debe dar igual a Multiple R-squared:  0.791
+```
+
+
+El coeficiente de determinación (que mide la bondad del ajuste de la recta a los datos) 
+es 0,791. Este R2 nos indica que existe vinculación entre ambas variables (0.7<R2<1).
+
+
+A continuación, tenemos un gráfico que nos muestra la nube de puntos y la recta de regresión:
+
+```{r}
+plot(ds$EMPLEADOS, ds$VENTAS, xlab="EMPLEADOS", ylab="VENTAS",col="blue")
+abline(regresion_lineal,col="red")
+```
+
+A continuación vamos a realizar el diagnóstico del modelo. Para un modelo de regresión lineal, debemos realizar un estudio de los residuos, que previamente estandarizaremos:
+
+```{r}
+residuos<- rstandard(regresion_lineal)
+valores.ajustados<-fitted(regresion_lineal)
+plot(valores.ajustados, residuos)
+```
+
+Se observa un patrón especial, una forma de embudo, esto indica que el modelo es heterocedástico por lo que la linealidad no resulta una hipótesis razonable.
+
+Si hacemos observamos la siguiente gráfica:
+```{r}
+qqnorm(residuos)
+qqline(residuos)
+```
+ 
+La curva sigue un patrón serpenteante, lo que nos hace pensar que no existe normalidad.  
+
+```{r}
+Coef_asimetria_residuos <- skewness(residuos)
+Coef_asimetria_residuos 
+Curtosis_residuos <- kurtosis(residuos)
+Curtosis_residuos
+```
+
+Observamos que tanto la curtosis como la asimetría no se encuentan entre -2 y 2, por lo que podemos decir que no existe normalidad.
+
+Por último, si realizamos el test de Shapiro:
+
+```{r}
+shapiro.test(residuos)
+```
+
+El p-valor es menor a 0.05, lo que nos hace rechazar la hipóteisis nula de que existe normalidad.
+
+
+**MODELO DE REGRESIÓN MÚLTIPLE:**
+
+Los modelos lineales múltiples siguen la siguiente ecuación:
+
+$$Y=A+B_1X_1+B_2X_2+...+B_pX_p+...$$
+Siendo:  
+- X1: Variable predictora (o explicativa).  
+- B1: pendiente: Coeficiente de la variable predictora X1.  
+- A: Intercepto/TTérmino Independiente  .
+
+Vamos a realizar el modelo de regresión lineal múltiple para todas las variables numéricas. Iremos descartando aquellas variables cuyos p-valores nos indiquen que no son representativas.
+#Atenderemos a los p-valores asociados a las variables independientes y 
+#descartaremos secuencialmente aquellas que no sean representativas para terminar generando un modelo final.
+#Evaluaremos el ajuste y la bondad de cada uno de los modelos para decidir cuál es el más apropiado.
+
+```{r}
+modelo1 <- lm(ds$VENTAS~ds$rentabieco+ds$rentabifin+ds$endp+ds$liq+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$edad+ds$conce+ds$numac+ds$numpa+ds$numest+ds$estp+ds$grupo+ds$fju)
+modelo1
+summary(modelo1)
+```
+
+El modelo tiene un R^2 ajustado alto 0.825, pero observamos que existen varios valores con un p-value no significativa.
+
+Vamos a realizar otro modelo eliminando numac, que tiene el p-valor más elevado:
+
+```{r}
+modelo2 <- lm(ds$VENTAS~ds$rentabieco+ds$rentabifin+ds$endp+ds$liq+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$edad+ds$conce+ds$numpa+ds$numest+ds$estp+ds$grupo+ds$fju)
+modelo2
+summary(modelo2)
+```
+
+Mantenemos R^2 en 0.825.  
+
+Seguimos observando que existen varios valores con un p-value no significativa.
+
+Vamos a realizar otro modelo eliminando liq, que tiene el p-valor más elevado:
+
+```{r}
+modelo3 <- lm(ds$VENTAS~ds$rentabieco+ds$rentabifin+ds$endp+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$edad+ds$conce+ds$numpa+ds$numest+ds$estp+ds$grupo+ds$fju)
+modelo3
+summary(modelo3)
+```
+
+Mantenemos R^2 en 0.825.  
+
+Seguimos observando que existen varios valores con un p-value no significativa.
+
+Vamos a realizar otro modelo eliminando rentabifin , que tiene el p-valor más elevado:
+
+
+```{r}
+modelo4 <- lm(ds$VENTAS~ds$rentabieco+ds$endp+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$edad+ds$conce+ds$numpa+ds$numest+ds$estp+ds$grupo+ds$fju)
+modelo4
+summary(modelo4)
+```
+
+Mantenemos R^2 en 0.825.  
+
+Seguimos observando que existen varios valores con un p-value no significativa.
+
+Vamos a realizar otro modelo eliminando estp, que tiene el p-valor más elevado:
+
+```{r}
+modelo5 <- lm(ds$VENTAS~ds$rentabieco+ds$endp+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$edad+ds$conce+ds$numpa+ds$numest+ds$grupo+ds$fju)
+modelo5
+summary(modelo5)
+```
+
+Mantenemos R^2 en 0.825.  
+Seguimos observando que existen varios valores con un p-value no significativa.
+
+Vamos a realizar otro modelo eliminando grupo, que tiene el p-valor más elevado:
+
+```{r}
+modelo6 <- lm(ds$VENTAS~ds$rentabieco+ds$endp+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$edad+ds$conce+ds$numpa+ds$numest+ds$fju)
+modelo6
+summary(modelo6)
+```
+
+Observamos que todas las variables están relacionados, ya que todas tienen un p-valor menor a 0.05. Aún así, seguiremos eliminado las variables que con el p-valor más alto para afinar el modelo.  
+Mantenemos R^2 en 0.825.  
+Vamos a realizar otro modelo eliminando edad, que tiene el p-valor más elevado:
+
+```{r}
+modelo7 <- lm(ds$VENTAS~ds$rentabieco+ds$endp+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$conce+ds$numpa+ds$numest+ds$fju)
+modelo7
+summary(modelo7)
+```
+
+Mantenemos R^2 en 0.825.  
+Vamos a seguir afinando el modelo eliminando numpa, que tiene el p-valor más elevado:
+
+```{r}
+modelo8 <- lm(ds$VENTAS~ds$rentabieco+ds$endp+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$conce+ds$numest+ds$fju)
+modelo8
+summary(modelo8)
+```
+
+Se ha reducido el R^2 a 0.824.  
+
+Vamos a seguir afinando el modelo eliminando fju, que tiene el p-valor más elevado:
+
+```{r}
+modelo9 <- lm(ds$VENTAS~ds$rentabieco+ds$endp+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$conce+ds$numest)
+modelo9
+summary(modelo9)
+```
+
+Se mantiene el R^2 en 0.824.  
+Vamos a seguir afinando el modelo eliminando rentabieco, que tiene el p-valor más elevado:
+
+```{r}
+modelo10 <- lm(ds$VENTAS~ds$endp+ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$conce+ds$numest)
+modelo10
+summary(modelo10)
+```
+
+Se mantiene el R^2 en 0.824.  
+Vamos a seguir afinando el modelo eliminando endp, que tiene el p-valor más elevado:
+
+```{r}
+modelo11 <- lm(ds$VENTAS~ds$PRODUCTIVIDAD+ds$EMPLEADOS+ds$coe+ds$conce+ds$numest)
+modelo11
+summary(modelo11)
+```
+
+Todas las variables tienen ahora un p-valor muy bajo, mientras que nuestro R^2 ajustado se ha mantenido en 0.824, por lo que nos quedamos con este modelo11.
+
+La ecuación de nuestro modelo quedaría:
+
+$$(y)ventas= --2638.18 + 78.17 productividad + 409.02 empleados + 46163.52 coe + 8.87 conce + 307.29 numest$$
+
+
+Vamos a realizar un modelo de regresión conjunto entre ventas, empleados*productividad, ya que se entiende que cuantos más empleados y productividad, mayor número de ventas puede haber.
+
+```{r}
+regresion <- lm(ds$VENTAS~ds$EMPLEADOS*ds$PRODUCTIVIDAD)
+regresion
+summary(regresion)
+
+```
+
+Nos encontramos con un R^2 ajustado de 0.927 y p-valores para las variables bajo, por lo que sería un buen modelo.
+
+
+### 3.- Mediante inferencia estadística, decidir si existe alguna evidencia para poder afirmar que las ventas se comportan de forma diferente entre las provincias de Madrid y Barcelona.
+
+Vamos a utilizar las tablas del primer apartado, de las que cogeremos VENTAS.
+
+```{r}
+ds_madrid
+ds_bcn
+```
+
+La hipótesis nula es lo que contrario de lo que queremos comprobar, es decir, la hipótesis nula es que Madrid y Barcelona se comportan diferente.
+
+Como hipótesis alternativa tenemos que Madrid y Barcelona se comportan igual.
+
+Para realizar el estudio de inferencia tenemos que partir de la hipótesis alternativa, es decir, la ventas se comportan igual en ambas provincias.
+
+Para poder realizar el contraste, ambas poblaciones deben ser normales e independientes. Lo comprobamos si el coeficiente de asimetría y la curtosis se encuentran entre los valores 2 y -2, y realizaremos el test de Shapiro.
+
+```{r}
+(skewness(ds_madrid$VENTAS))
+(kurtosis(ds_madrid$VENTAS))
+(skewness(ds_bcn$VENTAS))
+(kurtosis(ds_bcn$VENTAS))
+shapiro.test(ds_madrid$VENTAS)
+shapiro.test(ds_bcn$VENTAS)
+```
+Como podemos comprobar, no se encuentran en el rango 2 y -2 y el test de Shapiro tiene un p-valor por debajo de 0.05, por lo que se rechaza la hipótesis nula de que son normales.
+
+Aún así, para continuar con el ejercicio vamos a suponer que las distribuciones son normales.
+
+Para saber que ecuación podemos utilizar, debemos analizar las varianzas, si son iguales o no en ambas provincias. Una forma de saber si dos números son iguales es que su división sea 1m partiendo con la hipotesis inicial que es que las varianzas de las dos poblaciones Madrid y Barcelona son iguales.
+
+
+```{r}
+var.test(ds_madrid$VENTAS,ds_bcn$VENTAS)
+```
+
+El p-valor es menor de 0.05, por lo que podemos rechazar la hipótesis nula, lo que significa que las varianzas de Madrid y Barcelona son distintas.
+
+Si observamos el valor de los intervalos de confianza, vemos que el 1 no se encuentra entre ellos, 1 < 1.115 < 1.581, lo que nos vuelve a indicar que las varianzas no son iguales.
+
+Al no ser las varianzas iguales, debemos ver si las medias son iguales o no, en este caso mediante su resta, que debe dar 0 para valores iguales. Como anteriormente, nuestra hipótesis inicial es que las ventas se comportan igual, lo comprobamos con el t-test:
+
+```{r}
+t.test(ds_madrid$VENTAS,ds_bcn$VENTAS, var.equal = F)
+```
+
+El p-valor es superior a 0.05, por lo que no podemos rechazar nuestra hipótesis nula, es decir, podemos aceptar que las medias se comportan igual.
+
+Es decir, las ventas entre Madrid y Barcelona se comportan igual.
+
+Por último, vamos a comparar las medias de VENTAS entre Madrid y Barcelona, siendo la hipótesis nula que la media de madrid es mayor o igual que la media de Barcelona y siendo la hipótesis alternativa que la media Madrid es menor a la Barcelona.
+
+```{r}
+t.test(ds_madrid$VENTAS, ds_bcn$VENTAS, var.equal=F, alternative = "greater", paired = F)
+```
+
+Observamos que el p-valor es mayor que 0.05, por lo que no podemos aceptar la hipótesis alternativa, es decir, aceptamos la hipótesis nula, la media de Madrid es mayor o igual a Barcelona.
+  
+  
+  
+  
